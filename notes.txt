@@ -1,0 +1,33 @@
+// TODO: first input =  uav_obstacle, second input = array of obstacles?
+// TODO: does aabb_max need to return anything, or is the array passed by refrence?... think the latter, if so, adjust
+
+bool AABBtoAABB(uav_obj, const TAABB& tBox2)
+{
+
+
+// Get UAV min and max
+    float uav_max[3];
+    float uav_min[3] = uav_obj.aabb_max();
+
+    
+// Loop Through Array of Obstacles
+float obstacle_min[3], obstacle_max[3];
+for(){
+
+    // Get Obstacle min and max
+    obstacle_min = SOMETHING.aabb_min();
+    obstacle_max = SOMETHING.aabb_max(obstacle_max);
+
+    //Check if Box1's max is greater than Box2's min and Box1's min is less than Box2's max
+    if(tBox1.m_vecMax.x > tBox2.m_vecMin.x &&
+    tBox1.m_vecMin.x < tBox2.m_vecMax.x &&
+    tBox1.m_vecMax.y > tBox2.m_vecMin.y &&
+    tBox1.m_vecMin.y < tBox2.m_vecMax.y &&
+    tBox1.m_vecMax.z > tBox2.m_vecMin.z &&
+    tBox1.m_vecMin.z < tBox2.m_vecMax.z){
+	return false;
+    }
+}
+
+return true;
+}
