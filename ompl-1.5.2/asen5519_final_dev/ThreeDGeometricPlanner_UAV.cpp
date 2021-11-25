@@ -2,20 +2,20 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/planners/rrt/RRT.h>
 #include <ompl/geometric/SimpleSetup.h>
+#include <ompl/base/Obstacle.h>
 
 #include <ompl/config.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "Obstacle.h"
 
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
 /* Author: Griffin Van Anne */
-std::vector<Obstacle> BuildEnvironment(int num_obstacles);
+std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles);
 
-bool CollisionCheck(Obstacle uav_obj, std::vector<Obstacle> env);
+bool CollisionCheck(ob::Obstacle uav_obj, std::vector<ob::Obstacle> env);
 
 bool isStateValid(const ob::State* state) {
 
@@ -35,8 +35,8 @@ void plan()
 {
 
 	// build environment and uav object - use in state validity checker
-	std::vector<Obstacle> environment = BuildEnvironment(5);
-	Obstacle uav_obj;
+	std::vector<ob::Obstacle> environment = BuildEnvironment(5);
+	ob::Obstacle uav_obj;
 
 	std::ofstream PathResult("path_result.txt");
 	// construct the state space we are planning in - RE(3) in this case
@@ -126,7 +126,7 @@ int main(int /*argc*/, char** /*argv*/) {
 	return 0;
 }
 
-bool CollisionCheck(Obstacle uav_obj, std::vector<Obstacle> env)
+bool CollisionCheck(ob::Obstacle uav_obj, std::vector<ob::Obstacle> env)
 {
 
     // Get UAV min and max
@@ -156,7 +156,7 @@ bool CollisionCheck(Obstacle uav_obj, std::vector<Obstacle> env)
     return false; //no collisions
 }
 
-std::vector<Obstacle> BuildEnvironment(int num_obstacles){
+std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles){
   /*
   int max_h = 100;
   int min_h = 10;
@@ -175,10 +175,10 @@ std::vector<Obstacle> BuildEnvironment(int num_obstacles){
   float y_vals[5] = {1, 15, 30, 45, 60};
   float z_vals[5] = {0, 0, 0, 0, 0};
 
-  std::vector<Obstacle> env;
+  std::vector<ob::Obstacle> env;
   for(int i=0;i<5;i++){
     std::vector<float> origin = {x_vals[i], y_vals[i], z_vals[i]};
-    Obstacle obs;
+    ob::Obstacle obs;
     obs.set_values(origin, w_val[i], d_val[i], h_val[i]);
     env.push_back(obs);
   }

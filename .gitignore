@@ -1,6 +1,13 @@
+# FOLDERS
 build/
 demos/
-src/
+external/
+control/
+datastructures/
+extensions/
+geometric/
+tools/
+util/
 CMakeModules/
 tests/
 scripts/

@@ -1,4 +1,6 @@
 #include "Obstacle.h"
+#include <vector>
+
 
 std::vector<float> Obstacle::aabb_max() {
     std::vector<float> max;
