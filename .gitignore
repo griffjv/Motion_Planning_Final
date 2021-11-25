@@ -1,6 +1,12 @@
 build/
 demos/
-src/
+src/external/
+src/ompl/control/
+src/ompl/datastructures/
+src/ompl/extensions/
+src/ompl/geometric/
+src/ompl/tools/
+src/ompl/util/
 CMakeModules/
 tests/
 scripts/
