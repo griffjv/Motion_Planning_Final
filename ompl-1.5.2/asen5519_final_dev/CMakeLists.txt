@@ -17,6 +17,8 @@ if (OMPL_BUILD_FINALPROJ)
 
     ##### Add files compile here ######
     add_ompl_finalproj(demo_TestingGeometric3D TestingGeometric3D.cpp)
+    #add_ompl_finalproj(demo_Obstacle.cpp Obstacle)
+    add_ompl_finalproj(demo_ThreeDGeometricPlanner_UAV ThreeDGeometricPlanner_UAV.cpp)
     ###################################
 
 endif(OMPL_BUILD_FINALPROJ)
