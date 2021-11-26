@@ -1,0 +1,13 @@
+Geometric path with 11 states
+RealVectorState [2 2 0]
+RealVectorState [1.35013 3.8791 2.83667]
+RealVectorState [2.35906 7.08827 3.66326]
+RealVectorState [4.49104 6.76844 5.44985]
+RealVectorState [5.15341 8.14049 7.37757]
+RealVectorState [5.73724 6.81868 6.96146]
+RealVectorState [5.68704 7.35259 5.82429]
+RealVectorState [8.36135 8.64354 6.02535]
+RealVectorState [9.01116 6.23319 3.62369]
+RealVectorState [8.16841 7.70574 0.60353]
+RealVectorState [8 8 0]
+
