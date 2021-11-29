@@ -1,0 +1,7 @@
+RealVectorState [140 140 0]
+RealVectorState [135.312 97.9642 20.2734]
+RealVectorState [129.518 51.7104 15.0752]
+RealVectorState [127.075 28.0967 55.528]
+RealVectorState [98.3421 14.7355 81.859]
+RealVectorState [66.8927 28.8173 74.0204]
+RealVectorState [70 25 42.1]

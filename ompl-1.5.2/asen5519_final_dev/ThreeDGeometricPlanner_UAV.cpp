@@ -3,49 +3,124 @@
 #include <ompl/geometric/planners/rrt/RRT.h>
 #include <ompl/geometric/SimpleSetup.h>
 #include <ompl/base/Obstacle.h>
+#include <ompl/base/goals/GoalState.h>
+#include <ompl/base/goals/GoalRegion.h>
+#include <ompl/base/goals/GoalSampleableRegion.h>
+
 
 #include <ompl/config.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <time.h>
 
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
+
+
+
+
 /* Author: Griffin Van Anne */
 std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles);
 
-bool CollisionCheck(ob::Obstacle uav_obj, std::vector<ob::Obstacle> env);
+bool CollisionCheck(ob::Obstacle obj, std::vector<ob::Obstacle> env);
+
+
+
+/////// Global variables ///////
+// build environment and uav object - use in state validity checker
+std::vector<ob::Obstacle> environment = BuildEnvironment(5);
+ob::Obstacle uav_obj;
+
+
+class RigidBodyGoal : public ob::GoalSampleableRegion
+{
+public:
+    RigidBodyGoal(const ob::SpaceInformationPtr &si) : ob::GoalSampleableRegion(si)
+    {
+    	threshold_ = 1; //not sure what this is yet, rad of goal?
+    }
+ 
+    virtual double distanceGoal(const ob::State *st) const override{
+   	// cast state to expected type, store as vector
+	const auto* re3state = st->as<ob::RealVectorStateSpace::StateType>()->values;
+	
+	if (re3state[2] > 0.1){ //must be approx on ground
+		return re3state[2]+threshold_;
+	}else{
+		double dx1 = fabs(re3state[0] - 23);
+		double dy1 = fabs(re3state[1] - 33);
+		
+		double dx2 = fabs(re3state[0] - 43);
+		double dy2 = fabs(re3state[1] - 24);
+		
+		double dist1 = sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]);
+		double dist2 = sqrt(dx2*dx2 + dy2*dy2 + re3state[2]*re3state[2]);
+		
+		if(dist1 > dist2){
+			return dist2;
+		}else{
+			return dist1;
+		}	
+	}
+    }
+    
+    void sampleGoal(ob::State *st) const override{
+	int num = rand() % 2;
+	
+	if(num == 0){
+		st->as<ob::RealVectorStateSpace::StateType>()->values[0]=23;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[1] =33;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
+		std::cout<<"goal1"<<std::endl;
+	}else{
+		st->as<ob::RealVectorStateSpace::StateType>()->values[0]=43;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[1] =24;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
+		std::cout<<"goal2"<<std::endl;
+	}
+	// cast state to expected type, store as vector
+	auto* re3state = st->as<ob::RealVectorStateSpace::StateType>()->values;
+	std::cout<<re3state[0]<<std::endl;
+	
+    }
+    
+    virtual unsigned int maxSampleCount() const override{
+    	return 100;
+    }
+};
+
 
 bool isStateValid(const ob::State* state) {
 
 	// cast state to expected type, store as vector
 	const auto* re3state = state->as<ob::RealVectorStateSpace::StateType>()->values;
-	//std::cout << re3state[0] << std::endl;
 
-	// TODO :: update checker to take in multiple objects and check more complex geometric collisions
-	// Testing Rectangle spanning 4.5<x<5.5, 0<y<10, 0<z<5
-	// check validity of state defined by re3state
-	bool validity = (4.5 <= re3state[0] && re3state[0] <= 5.5) && (0 <= re3state[1] && re3state[1] <= 10) && (0 <= re3state[2] && re3state[2] <= 5);
+	// update location of uav_obj based on state
+	std::vector<float> location(re3state, re3state+3);
+	uav_obj.set_values(location, 5, 5, 1); //size of uav is 5x5x1
+	
+	// collision check
+	bool validity = !CollisionCheck(uav_obj, environment);
 
-	return !validity;
+	return validity;
 }
+
 
 void plan()
 {
 
-	// build environment and uav object - use in state validity checker
-	std::vector<ob::Obstacle> environment = BuildEnvironment(5);
-	ob::Obstacle uav_obj;
+
 
 	std::ofstream PathResult("path_result.txt");
 	// construct the state space we are planning in - RE(3) in this case
 	auto space(std::make_shared<ob::RealVectorStateSpace>());
 
 	// add dimensions to state space
-	space->addDimension("x", 0.0, 10.0);
-	space->addDimension("y", 0.0, 10.0);
-	space->addDimension("z", 0.0, 10.0);
+	space->addDimension("x", 0.0, 150.0);
+	space->addDimension("y", 0.0, 150.0);
+	space->addDimension("z", 0.0, 100.0);
 
 	//ob::RealVectorBounds bounds(3);
 	// uniform bounds for all dimensions
@@ -64,22 +139,30 @@ void plan()
 
 	// create a start state
 	ob::ScopedState<> start(space);
-	start[0] = 2.0;
-	start[1] = 2.0;
+	start[0] = 140.0;
+	start[1] = 140.0;
 	start[2] = 0;
 
 	// create a goal state
 	ob::ScopedState<> goal(space);
-	goal[0] = 8.0;
-	goal[1] = 8.0;
-	goal[2] = 0;
+	goal[0] = 25.0;
+	goal[1] = 70.0;
+	goal[2] = 42.1;
 
 	// create a problem instance from space information
 	auto pdef(std::make_shared<ob::ProblemDefinition>(si));
 
 	// set the start and goal states
-	pdef->setStartAndGoalStates(start, goal);
-
+	//pdef->setStartAndGoalStates(start, goal);
+	// set the start state
+	pdef->clearStartStates();
+	pdef->addStartState(start);
+	
+	// set the goal state
+	pdef->clearGoal();
+	auto gs(std::make_shared<ob::GoalState>(si));
+	pdef->setGoal(std::make_shared<RigidBodyGoal>(si));
+	
 	// create a planner for the defined space
 	auto planner(std::make_shared<og::RRT>(si));
 
@@ -100,7 +183,6 @@ void plan()
 
 	if (solved)
 	{
-		// get the goal representation from the problem definition (not the same as the goal state)
 		// and inquire about the found path
 		ob::PathPtr path = pdef->getSolutionPath();
 		std::cout << "Found solution:" << std::endl;
@@ -109,14 +191,16 @@ void plan()
 		path->print(std::cout);
 		path->print(PathResult);
 	}
-	else
+	else{
 		std::cout << "No solution found" << std::endl;
-	PathResult.close();
+		PathResult.close();
+	}
 }
 
 int main(int /*argc*/, char** /*argv*/) {
 	std::cout << "OMPL version: " << OMPL_VERSION << std::endl;
-
+	
+	srand((unsigned) time(NULL));
 	plan();
 
 	std::cout << std::endl << std::endl;
@@ -126,12 +210,12 @@ int main(int /*argc*/, char** /*argv*/) {
 	return 0;
 }
 
-bool CollisionCheck(ob::Obstacle uav_obj, std::vector<ob::Obstacle> env)
+bool CollisionCheck(ob::Obstacle obj, std::vector<ob::Obstacle> env)
 {
 
     // Get UAV min and max
-    std::vector<float> uav_min = uav_obj.aabb_min();
-    std::vector<float> uav_max = uav_obj.aabb_max();
+    std::vector<float> uav_min = obj.aabb_min();
+    std::vector<float> uav_max = obj.aabb_max();
 
 
     // Loop Through Array of Obstacles
