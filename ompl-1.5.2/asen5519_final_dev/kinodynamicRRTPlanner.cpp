@@ -24,7 +24,7 @@ namespace oc = ompl::control;
 
 
 // Methods - Implementation at bottom of code
-std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles);
+std::vector<ob::Obstacle> BuildEnvironment();
 
 bool CollisionCheck(ob::Obstacle obj, std::vector<ob::Obstacle> env);
 
@@ -34,11 +34,8 @@ void KinematicUAVPostIntegration(const ob::State*, const oc::Control*, const dou
 
 /////// Global variables ///////
 // build environment and uav object - use in state validity checker
-std::vector<ob::Obstacle> environment = BuildEnvironment(5);
+std::vector<ob::Obstacle> environment = BuildEnvironment();
 ob::Obstacle uav_obj;
-
-// TODO: Put in KinematicUAVPostIntegration if needed
-// TODO: Put bounds checks on eta, rho, T inside state validity checker instead of ODE
 
 // check if state is valid
 bool isStateValid(const ob::State* state);
@@ -55,7 +52,7 @@ class RigidBodyGoal : public ob::GoalSampleableRegion
 public:
     RigidBodyGoal(const ob::SpaceInformationPtr &si) : ob::GoalSampleableRegion(si)
     {
-    	threshold_ = 2; //not sure what this is yet, rad of goal?
+    	threshold_ = 3; //not sure what this is yet, rad of goal?
     }
  
     virtual double distanceGoal(const ob::State *st) const override{
@@ -63,16 +60,22 @@ public:
 	const auto* re3state = st->as<ob::RealVectorStateSpace::StateType>()->values;
 	
 	double distance = 0;
-	//TODO: add in lateral velocity check
-	if (re3state[2] > 0.1){ //must be approx on ground
-		distance = re3state[2]+threshold_;
-		}
-	if(fabs(re3state[5]) > .75){ //conservative estimate for impact speed
+
+	double impact_speed = sqrt(2*9.81*re3state[2] + pow(re3state[5],2)); 
+	
+	if(impact_speed > 2.5){ //conservative estimate for max impact speed
 		distance = distance + threshold_ + fabs(re3state[5]);
 		}
+		
+	double lateral_speed = sqrt(re3state[3]*re3state[3] + re3state[4]*re3state[4]);
+	
+	if(lateral_speed > 5){
+		distance = distance + threshold_ + lateral_speed;
+	}
+	
 	// Check if x,y has reached goal position
-	double dx1 = fabs(re3state[0] - 130);
-	double dy1 = fabs(re3state[1] - 130);
+	double dx1 = fabs(re3state[0] - 25);
+	double dy1 = fabs(re3state[1] - 35);
 	
 	double dx2 = fabs(re3state[0] - 43);
 	double dy2 = fabs(re3state[1] - 24);
@@ -90,12 +93,11 @@ public:
     
     void sampleGoal(ob::State *st) const override{
 	int num = rand() % 2;
-	num = 0;
 	if(num == 0){
-		st->as<ob::RealVectorStateSpace::StateType>()->values[0] =130;
-		st->as<ob::RealVectorStateSpace::StateType>()->values[1] =130;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[0] =25;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[1] =35;
 		st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
-		st->as<ob::RealVectorStateSpace::StateType>()->values[8] =9.81; //hover threshold
+		st->as<ob::RealVectorStateSpace::StateType>()->values[8] =0; //hover threshold
 		
 		// TODO: Set random goal for the other states, or just default to 0?
 		st->as<ob::RealVectorStateSpace::StateType>()->values[3] =0;
@@ -108,13 +110,17 @@ public:
 		st->as<ob::RealVectorStateSpace::StateType>()->values[0]=43;
 		st->as<ob::RealVectorStateSpace::StateType>()->values[1] =24;
 		st->as<ob::RealVectorStateSpace::StateType>()->values[8] =0;
+		// TODO: Set random goal for the other states, or just default to 0?
+		st->as<ob::RealVectorStateSpace::StateType>()->values[3] =0;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[4] =0;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[5] =0;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[6] =0;
+		st->as<ob::RealVectorStateSpace::StateType>()->values[7] =0;		
 	}
-	// cast state to expected type, store as vector
-	auto* re3state = st->as<ob::RealVectorStateSpace::StateType>()->values;
     }
     
     virtual unsigned int maxSampleCount() const override{
-    	return 100;
+    	return 100000;
     }
 };
 
@@ -138,7 +144,7 @@ void plan()
 	const double max_T = 2*g; //m/s^2
 	const double max_eta = M_PI/4; //rad
 	const double max_rho = M_PI/4; //rad
-	const double max_T_dot = max_T/1; //one sec to reach max thrust
+	const double max_T_dot = max_T/.5; //one sec to reach max thrust
 	const double max_eta_dot = max_eta/1; //one sec to reach peak eta displacement
 	const double max_rho_dot = max_rho/1; //one sec to reach peak rho displacement
 	space->addDimension("eta", -max_eta, max_eta);
@@ -172,9 +178,9 @@ void plan()
 
 	// create a start state
 	ob::ScopedState<> start(space);
-	start[0] = 130;
-	start[1] = 130;
-	start[2] = 10;
+	start[0] = 5;
+	start[1] = 5;
+	start[2] = 80;
 	start[3] = 0;
 	start[4] = 0;
 	start[5] = 0;
@@ -199,7 +205,7 @@ void plan()
 	// create a planner for the defined space
 	auto odeSolver(std::make_shared<oc::ODEBasicSolver<>>(si, &KinematicUAVODE));
 	si->setStatePropagator(oc::ODESolver::getStatePropagator(odeSolver, &KinematicUAVPostIntegration));
-	si->setPropagationStepSize(0.1);
+	si->setPropagationStepSize(0.05);
 	auto planner(std::make_shared<oc::RRT>(si));
 	
 	// set the problem we are trying to solve for the planner
@@ -215,7 +221,7 @@ void plan()
 	pdef->print(std::cout);
 
 	// attempt to solve the problem within one second of planning time
-	ob::PlannerStatus solved = planner->ob::Planner::solve(50.0);
+	ob::PlannerStatus solved = planner->ob::Planner::solve(120.0);
 
 	if (solved)
 	{
@@ -225,6 +231,7 @@ void plan()
 		
 		// print the path to screen
 		path->as<oc::PathControl>()->printAsMatrix(std::cout);
+		std::cout<<pdef->getSolutionDifference()<<std::endl;
 		path->as<oc::PathControl>()->printAsMatrix(PathResult);
 	}
 	else{
@@ -302,6 +309,13 @@ void KinematicUAVODE(const oc::ODESolver::StateType& q, const oc::Control* contr
 	}else{
 		qdot[8] = u[2];
 	}
+	
+	if(fabs(q[2])<.1){ // on the ground
+		if(fabs(z_dot) > 1){ // set all state derivatives to 0
+			qdot[0] = 0; qdot[1] = 0; qdot[2] = 0;
+			qdot[3] = 0; qdot[4] = 0; qdot[5] = 0;
+		}
+	}
 }
 
 
@@ -336,7 +350,7 @@ bool CollisionCheck(ob::Obstacle obj, std::vector<ob::Obstacle> env)
     return false; //no collisions
 }
 
-std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles){
+std::vector<ob::Obstacle> BuildEnvironment(){
   /*
   int max_h = 100;
   int min_h = 10;
@@ -374,7 +388,7 @@ bool isStateValid(const ob::State* state) {
 
 	// update location of uav_obj based on state
 	std::vector<float> location(re3state, re3state+3);
-	uav_obj.set_values(location, 5, 5, 1); //size of uav is 5x5x1
+	uav_obj.set_values(location, 2, 2, .5); //size of uav is 5x5x1
 	
 	// collision check
 	bool validity = !CollisionCheck(uav_obj, environment);
@@ -385,11 +399,13 @@ bool isStateValid(const ob::State* state) {
 void KinematicUAVPostIntegration(const ob::State*, const oc::Control*, const double, ob::State *result){
 	// Make sure z does not go below 0
 	ob::RealVectorStateSpace re3;
-	if(!re3.satisfiesBounds(result->as<ob::RealVectorStateSpace::StateType>())){
-		std::cout<<"BOUNDS NOT SATISFIED - CORRECTING HOPEFULLY"<<std::endl;
+	
+		// cast state to expected type, store as vector
+	auto* re3state = result->as<ob::RealVectorStateSpace::StateType>()->values;
+
+	if(re3state[2] < 0){
+		re3state[2] = 0;
 	}
-	
-	
-	re3.enforceBounds(result->as<ob::RealVectorStateSpace::StateType>());
+
 }	
 
