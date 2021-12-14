@@ -1,6 +1,7 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/control/planners/sst/SST.h>
+#include <ompl/base/objectives/StateCostIntegralObjective.h>
 #include <ompl/control/SimpleSetup.h>
 #include <ompl/control/ODESolver.h>
 #include <ompl/base/Obstacle.h>
@@ -122,7 +123,7 @@ public:
 	st->as<ob::RealVectorStateSpace::StateType>()->values[0] = goal_x[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[1] = goal_y[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
-	st->as<ob::RealVectorStateSpace::StateType>()->values[8] =0; //hover thresh
+	st->as<ob::RealVectorStateSpace::StateType>()->values[8] =9.81; //hover thresh
 
 	// TODO: Set random goal for the other states, or just default to 0?
 	st->as<ob::RealVectorStateSpace::StateType>()->values[3] =0;
@@ -157,7 +158,7 @@ double plan(double prop_time)
 	const double max_T = 2*g; //m/s^2
 	const double max_eta = M_PI/4; //rad
 	const double max_rho = M_PI/4; //rad
-	const double max_T_dot = max_T/.5; //one sec to reach max thrust
+	const double max_T_dot = max_T/1 * .75; //one sec to reach max thrust
 	const double max_eta_dot = max_eta/1; //one sec to reach peak eta displacement
 	const double max_rho_dot = max_rho/1; //one sec to reach peak rho displacement
 	space->addDimension("eta", -max_eta, max_eta);
@@ -218,7 +219,7 @@ double plan(double prop_time)
 	// create a planner for the defined space
 	auto odeSolver(std::make_shared<oc::ODEBasicSolver<>>(si, &KinematicUAVODE));
 	si->setStatePropagator(oc::ODESolver::getStatePropagator(odeSolver, &KinematicUAVPostIntegration));
-	si->setPropagationStepSize(prop_time);
+	si->setPropagationStepSize(0.2);
 	auto planner(std::make_shared<oc::SST>(si));
 
 	// SST settings
@@ -444,6 +445,36 @@ void KinematicUAVPostIntegration(const ob::State*, const oc::Control*, const dou
 	}
 }
 
+
+
+class PathEnergyObjective : public ob::StateCostIntegralObjective
+{
+public:
+	PathEnergyObjective(const oc::SpaceInformationPtr& si) :
+		ob::StateCostIntegralObjective(si)
+		{
+		}
+
+		// return thrust value
+		ob::Cost stateCost(const ob::State *s) const override{
+			// cast state to expected type
+			auto* re9state = s->as<ob::RealVectorStateSpace::StateType>()->values;
+
+			return ob::Cost(re9state[8]); // thrust index
+		}
+
+		// Integrate control energy over time. Must override to pass in control time
+		ob::Cost motionCost(const ob::State *s1, const ob::State *s2, const unsigned int cd) const override
+		{
+			std::cout<<this->stateCost(s1)<<std::endl;
+			std::cout<<this->stateCost(s2)<<std::endl;
+			std::cout<<cd<<std::endl;
+			
+			std::cout<<this->trapezoid(this->stateCost(s1), this->stateCost(s2), cd*.2)<<std::endl; // (T2+T1)/2 * time
+			return this->trapezoid(this->stateCost(s1), this->stateCost(s2), cd*.2);
+		}
+};
+
 // Returns a structure representing the optimization objective to use
 // for optimal motion planning
 ob::OptimizationObjectivePtr getPathEnergyObjective(const oc::SpaceInformationPtr& si)
@@ -451,31 +482,5 @@ ob::OptimizationObjectivePtr getPathEnergyObjective(const oc::SpaceInformationPt
     return std::make_shared<PathEnergyObjective>(si);
 }
 
-class PathEnergyObjective : public ob::StateCostIntegralObjective
-{
-public:
-	PathEnergyObjective(const oc::SpaceInformationPtr& si) :
-		ob:StateCostIntegralObjective(si)
-		{
-		}
 
-		// return thrust value
-		ob::Cost stateCost(const State *s){
-			// cast state to expected type
-			auto* re9state = s->as<ob::RealVectorStateSpace::StateType>()->values;
 
-			return re9state[8]; // thrust index
-		}
-
-		// Integrate control energy over time. Must override to pass in control time
-		ob::Cost motionCost(const State *s1, const State *s2, const double cd) const override
-		{
-			std::cout<<this->stateCost(s1)<<std::endl;
-			std::cout<<this->stateCost(s2)<<std::endl;
-			std::cout<<cd<<std::endl;
-			std::cout<<si_->getPropagationStepSize<<std::endl;
-
-			std::cout<<this->trapezoid(this->stateCost(s1), this->stateCost(s2), cd*si_->getPropagationStepSize())<<std::endl; // (T2+T1)/2 * time
-			return this->trapezoid(this->stateCost(s1), this->stateCost(s2), cd*si_->getPropagationStepSize());
-		}
-}
