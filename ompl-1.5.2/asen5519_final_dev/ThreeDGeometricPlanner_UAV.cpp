@@ -6,23 +6,29 @@
 #include <ompl/base/goals/GoalState.h>
 #include <ompl/base/goals/GoalRegion.h>
 #include <ompl/base/goals/GoalSampleableRegion.h>
-
+#include <string>
 
 #include <ompl/config.h>
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <time.h>
+#include <cctype>
+#include <random>
+
+using u32    = uint_least32_t; 
+using engine = std::mt19937;
 
 namespace ob = ompl::base;
 namespace og = ompl::geometric;
 
-
-
-
+std::random_device os_seed;
+const u32 seed = os_seed();
+engine generator( seed );
+std::uniform_int_distribution< u32 > distribute( 0, 6 );
 
 /* Author: Griffin Van Anne */
-std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles);
+std::vector<ob::Obstacle> BuildEnvironment();
 
 bool CollisionCheck(ob::Obstacle obj, std::vector<ob::Obstacle> env);
 
@@ -30,7 +36,7 @@ bool CollisionCheck(ob::Obstacle obj, std::vector<ob::Obstacle> env);
 
 /////// Global variables ///////
 // build environment and uav object - use in state validity checker
-std::vector<ob::Obstacle> environment = BuildEnvironment(5);
+std::vector<ob::Obstacle> environment = BuildEnvironment();
 ob::Obstacle uav_obj;
 
 
@@ -43,51 +49,45 @@ public:
     }
  
     virtual double distanceGoal(const ob::State *st) const override{
+	std::vector<float> goal_x, goal_y;
+    	goal_x = {70, 140, 225, 25, 85, 20, 215};
+    	goal_y = {30, 100, 85, 225, 150, 100, 160};
+    	
    	// cast state to expected type, store as vector
 	const auto* re3state = st->as<ob::RealVectorStateSpace::StateType>()->values;
 	
+	double dist2 = 0;
 	if (re3state[2] > 0.1){ //must be approx on ground
-		return re3state[2]+threshold_;
-	}else{
-		double dx1 = fabs(re3state[0] - 23);
-		double dy1 = fabs(re3state[1] - 33);
-		
-		double dx2 = fabs(re3state[0] - 43);
-		double dy2 = fabs(re3state[1] - 24);
-		
-		double dist1 = sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]);
-		double dist2 = sqrt(dx2*dx2 + dy2*dy2 + re3state[2]*re3state[2]);
-		
-		if(dist1 > dist2){
-			return dist2;
-		}else{
-			return dist1;
-		}	
+		dist2 = re3state[2]+threshold_;
 	}
+	
+	double dist1 = 1000;
+	for(int i = 0; i<7;i++){
+		// Check if x,y has reached goal position
+		double dx1 = fabs(re3state[0] - goal_x[6]);
+		double dy1 = fabs(re3state[1] - goal_y[6]);
+		
+		if(sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]) < dist1){
+			dist1 = sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]);
+		}
+	}
+	return dist1+dist2;	
     }
     
     void sampleGoal(ob::State *st) const override{
-	int num = rand() % 2;
-	
-	if(num == 0){
-		st->as<ob::RealVectorStateSpace::StateType>()->values[0]=23;
-		st->as<ob::RealVectorStateSpace::StateType>()->values[1] =33;
-		st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
-		std::cout<<"goal1"<<std::endl;
-	}else{
-		st->as<ob::RealVectorStateSpace::StateType>()->values[0]=43;
-		st->as<ob::RealVectorStateSpace::StateType>()->values[1] =24;
-		st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
-		std::cout<<"goal2"<<std::endl;
-	}
-	// cast state to expected type, store as vector
-	auto* re3state = st->as<ob::RealVectorStateSpace::StateType>()->values;
-	std::cout<<re3state[0]<<std::endl;
-	
+    	std::vector<float> goal_x, goal_y;
+    	goal_x = {70, 140, 225, 25, 85, 20, 215};
+    	goal_y = {30, 100, 85, 225, 150, 100, 160};
+
+	int num = distribute( generator );
+	num = 6;
+	st->as<ob::RealVectorStateSpace::StateType>()->values[0] = goal_x[num];
+	st->as<ob::RealVectorStateSpace::StateType>()->values[1] = goal_y[num];
+	st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;			
     }
     
     virtual unsigned int maxSampleCount() const override{
-    	return 100;
+    	return 100000;
     }
 };
 
@@ -99,7 +99,7 @@ bool isStateValid(const ob::State* state) {
 
 	// update location of uav_obj based on state
 	std::vector<float> location(re3state, re3state+3);
-	uav_obj.set_values(location, 5, 5, 1); //size of uav is 5x5x1
+	uav_obj.set_values(location, 2, 2, .5); //size of uav is 2x2x1
 	
 	// collision check
 	bool validity = !CollisionCheck(uav_obj, environment);
@@ -110,22 +110,14 @@ bool isStateValid(const ob::State* state) {
 
 void plan()
 {
-
-
-
-	std::ofstream PathResult("path_result.txt");
+	std::ofstream PathResult("geo_result_goal7.txt");
 	// construct the state space we are planning in - RE(3) in this case
 	auto space(std::make_shared<ob::RealVectorStateSpace>());
 
 	// add dimensions to state space
-	space->addDimension("x", 0.0, 150.0);
-	space->addDimension("y", 0.0, 150.0);
-	space->addDimension("z", 0.0, 100.0);
-
-	//ob::RealVectorBounds bounds(3);
-	// uniform bounds for all dimensions
-	//bounds.setLow(0);
-	//bounds.setHigh(10);
+	space->addDimension("x", 0.0, 250.0);
+	space->addDimension("y", 0.0, 250.0);
+	space->addDimension("z", 0.0, 200.0);
 
 	//space->setBounds(bounds);
 	space->setup();
@@ -139,21 +131,16 @@ void plan()
 
 	// create a start state
 	ob::ScopedState<> start(space);
-	start[0] = 140.0;
-	start[1] = 140.0;
+	start[0] = 240;
+	start[1] = 240;
 	start[2] = 0;
 
 	// create a goal state
 	ob::ScopedState<> goal(space);
-	goal[0] = 25.0;
-	goal[1] = 70.0;
-	goal[2] = 42.1;
 
 	// create a problem instance from space information
 	auto pdef(std::make_shared<ob::ProblemDefinition>(si));
 
-	// set the start and goal states
-	//pdef->setStartAndGoalStates(start, goal);
 	// set the start state
 	pdef->clearStartStates();
 	pdef->addStartState(start);
@@ -200,7 +187,6 @@ void plan()
 int main(int /*argc*/, char** /*argv*/) {
 	std::cout << "OMPL version: " << OMPL_VERSION << std::endl;
 	
-	srand((unsigned) time(NULL));
 	plan();
 
 	std::cout << std::endl << std::endl;
@@ -240,9 +226,9 @@ bool CollisionCheck(ob::Obstacle obj, std::vector<ob::Obstacle> env)
     return false; //no collisions
 }
 
-std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles){
+std::vector<ob::Obstacle> BuildEnvironment(){
   /*
-  int max_h = 100;
+  int max_h = 150;
   int min_h = 10;
   int max_w = 20;
   int max_d = 20;
@@ -250,17 +236,17 @@ std::vector<ob::Obstacle> BuildEnvironment(int num_obstacles){
   int min_d = 5;
   */
 
-  float h_val[5] = {60, 34, 54.3, 100.0, 42.1};
-  float w_val[5] = {68.2, 12.3, 14.5, 83, 73.2};
-  float d_val[5] = {19.4, 12, 16.3, 85.3,43};
+  float h_val[15] = {60, 34, 54.3, 150.0, 42.1, 69, 30, 87, 94, 60, 128, 59, 142, 72, 49};
+  float w_val[15] = {68.2, 20, 24, 83, 73.2, 31, 49, 47, 59, 31, 35, 57, 48, 41, 21};
+  float d_val[15] = {19.4, 20, 16.3, 85.3,43, 59, 29, 27, 50, 70, 55, 53, 75, 37, 25};
 
 
-  float x_vals[5] = {1, 15, 30, 45, 20};
-  float y_vals[5] = {1, 15, 30, 45, 60};
-  float z_vals[5] = {0, 0, 0, 0, 0};
+  float x_vals[15] = {1, 15, 30, 45, 170, 10, 200, 180, 120, 43, 86, 119, 152, 164, 125};
+  float y_vals[15] = {1, 15, 30, 45, 20, 145, 200, 105, 120, 93, 23, 25, 44, 143, 210};
+  float z_vals[15] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   std::vector<ob::Obstacle> env;
-  for(int i=0;i<5;i++){
+  for(int i=0;i<15;i++){
     std::vector<float> origin = {x_vals[i], y_vals[i], z_vals[i]};
     ob::Obstacle obs;
     obs.set_values(origin, w_val[i], d_val[i], h_val[i]);

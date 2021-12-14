@@ -94,8 +94,8 @@ public:
 	double dist1 = 1000;
 	for(int i = 0; i<7;i++){
 	// Check if x,y has reached goal position
-		double dx1 = fabs(re3state[0] - goal_x[i]);
-		double dy1 = fabs(re3state[1] - goal_y[i]);
+		double dx1 = fabs(re3state[0] - goal_x[5]);
+		double dy1 = fabs(re3state[1] - goal_y[5]);
 		
 		if(sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]) < dist1){
 			dist1 = sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]);
@@ -112,11 +112,11 @@ public:
     	goal_y = {30, 100, 85, 225, 150, 100, 160};
     	
 	int num = distribute( generator );
-	// num = 6;
+	num = 5;
 	st->as<ob::RealVectorStateSpace::StateType>()->values[0] = goal_x[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[1] = goal_y[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
-	st->as<ob::RealVectorStateSpace::StateType>()->values[8] =0; //hover thresh
+	st->as<ob::RealVectorStateSpace::StateType>()->values[8] =9.81; //hover thresh - should be maybe >9.81, otherwise it is still accel down
 	
 	// TODO: Set random goal for the other states, or just default to 0?
 	st->as<ob::RealVectorStateSpace::StateType>()->values[3] =0;
@@ -132,9 +132,9 @@ public:
 };
 
 
-double plan(double prop_time)
+double plan(double control_scale)
 {
-	std::ofstream PathResult("kinodynamic_result.txt");
+	std::ofstream PathResult("kino_result_goal6.txt");
 	// construct the state space we are planning in - RE(3) in this case
 	auto space(std::make_shared<ob::RealVectorStateSpace>());
 
@@ -143,7 +143,6 @@ double plan(double prop_time)
 	space->addDimension("y", 0.0, 250.0);
 	space->addDimension("z", 0.0, 200.0);
 	
-	// TODO: ADD BOUNDS?
 	space->addDimension("x_dot", -15, 15);
 	space->addDimension("y_dot", -15, 15);
 	space->addDimension("z_dot", -15, 15);
@@ -151,7 +150,7 @@ double plan(double prop_time)
 	const double max_T = 2*g; //m/s^2
 	const double max_eta = M_PI/4; //rad
 	const double max_rho = M_PI/4; //rad
-	const double max_T_dot = max_T/.5; //one sec to reach max thrust
+	const double max_T_dot = max_T/1 * .75; //one sec to reach max thrust
 	const double max_eta_dot = max_eta/1; //one sec to reach peak eta displacement
 	const double max_rho_dot = max_rho/1; //one sec to reach peak rho displacement
 	space->addDimension("eta", -max_eta, max_eta);
@@ -212,7 +211,9 @@ double plan(double prop_time)
 	// create a planner for the defined space
 	auto odeSolver(std::make_shared<oc::ODEBasicSolver<>>(si, &KinematicUAVODE));
 	si->setStatePropagator(oc::ODESolver::getStatePropagator(odeSolver, &KinematicUAVPostIntegration));
-	si->setPropagationStepSize(prop_time);
+	si->setPropagationStepSize(0.2);
+	si->setMaxControlDuration(10);
+	si->setMinControlDuration(1);
 	auto planner(std::make_shared<oc::RRT>(si));
 	
 	// set the problem we are trying to solve for the planner
@@ -228,7 +229,7 @@ double plan(double prop_time)
 	pdef->print(std::cout);
 
 	// attempt to solve the problem within one second of planning time
-	ob::PlannerStatus solved = planner->ob::Planner::solve(45.0);
+	ob::PlannerStatus solved = planner->ob::Planner::solve(150.0);
 
 	if (solved)
 	{
@@ -239,6 +240,8 @@ double plan(double prop_time)
 		// print the path to screen
 		path->as<oc::PathControl>()->printAsMatrix(std::cout);
 		std::cout<<pdef->getSolutionDifference()<<std::endl;
+		
+		// save path to file
 		path->as<oc::PathControl>()->printAsMatrix(PathResult);
 	}
 	else{
@@ -256,25 +259,30 @@ int main(int /*argc*/, char** /*argv*/) {
 	
 	// benchmark results
 	double result;
-	std::vector<float>  distances =  {0,0,0};
-	std::vector<float> times = {0.1, 0.2, 0.3};
-	
-	for(int j = 0; j<3; j++){
+	std::vector<float>  distances =  {0,0,0,0,0};
+	std::vector<double> times = {.05, .1, .2, .3, .5};
+	for(int i = 0; i<10; i++){
+		if(plan(.1) == 0){
+			break;
+		}
+	}
+	/*
+	for(int j = 0; j<1; j++){
 		result = 0;
-		for(int i = 0; i<15; i++){
+		for(int i = 0; i<30; i++){
 			// plan
 			result = result + plan(times[j]);
 			std::cout<<i<<std::endl;
 		}
-		distances[j] = result/15;
+		distances[j] = result/30;
 		std::cout<<distances[j]<<std::endl;
 	}
 	
 	std::cout<<"Results: "<<std::endl;
-	for(int j = 0; j<3; j++){
+	for(int j = 0; j<1; j++){
 		std::cout<<distances[j]<<std::endl;
 	}
-	
+	*/
 	std::cout << std::endl << std::endl;
 
 	return 0;
@@ -432,6 +440,5 @@ void KinematicUAVPostIntegration(const ob::State*, const oc::Control*, const dou
 	if(re3state[2] < 0){
 		re3state[2] = 0;
 	}
-
 }	
 
