@@ -1,0 +1,13 @@
+RealVectorState [240 240 0]
+RealVectorState [181.288 240.652 56.1466]
+RealVectorState [228.683 229.61 74.9068]
+RealVectorState [215.352 227.64 76.6524]
+RealVectorState [177.594 221.219 130.981]
+RealVectorState [192.958 155.425 176.092]
+RealVectorState [208.544 108.58 111.573]
+RealVectorState [201.181 32.7558 120.815]
+RealVectorState [207.736 12.7967 42.3375]
+RealVectorState [126.614 15.2965 45.9466]
+RealVectorState [78.4057 1.54935 44.4784]
+RealVectorState [70 30 0]
+

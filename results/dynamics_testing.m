@@ -13,20 +13,23 @@ max_eta = pi/4;
 max_rho = pi/4;
 
 %% initial conditions
-x_0 = 0;
-y_0 = 0;
-z_0 = 0;
+x_0 = 140;
+y_0 = 140;
+z_0 = 10;
 x_dot_0 = 0;
 y_dot_0 = 0;
 z_dot_0 = 0;
 eta_0 = deg2rad(10);
 rho_0 = deg2rad(45);
-T_0 = max_thrust*.75;
+T_0 = 9.81;
 ic2d = [x_0; y_0; x_dot_0; y_dot_0; eta_0; T_0];
 ic3d = [x_0; y_0; z_0; x_dot_0; y_dot_0; z_dot_0; eta_0; rho_0; T_0];
 %% simulate
-tspan = [0 20];
-[t, y] = ode45(@(t,y) three_d_dynamics(t,y,g,max_eta,max_rho,max_thrust), tspan, ic3d);
+controls = [-.0646315 .516279 -5.0979];
+duration = 2;
+
+tspan = [0 duration];
+[t, y] = ode45(@(t,y) three_d_dynamics(t,y,g,controls, max_eta,max_rho,max_thrust), tspan, ic3d);
 
 %% visualize
 figure
