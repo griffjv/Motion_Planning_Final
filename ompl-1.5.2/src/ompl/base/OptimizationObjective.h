@@ -113,7 +113,7 @@ namespace ompl
             virtual Cost stateCost(const State *s) const = 0;
 
             /** \brief Get the cost that corresponds to the motion segment between \e s1 and \e s2 */
-            virtual Cost motionCost(const State *s1, const State *s2) const = 0;
+            virtual Cost motionCost(const State *s1, const State *s2, unsigned int cd = 0) const = 0;
 
             /** \brief Get the cost that corresponds to combining the costs \e c1 and \e c2. Default implementation
              * defines this combination as an addition. */
@@ -242,7 +242,7 @@ namespace ompl
               addition to add up all the individual objectives' motion
               cost values, where each individual value is scaled by
               its weight */
-            Cost motionCost(const State *s1, const State *s2) const override;
+            Cost motionCost(const State *s1, const State *s2, unsigned int cd = 0) const override;
 
         protected:
             /** \brief Defines a pairing of an objective and its weight */
