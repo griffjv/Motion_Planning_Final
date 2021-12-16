@@ -57,7 +57,7 @@ namespace ompl
             /** \brief Interpolates between \e s1 and \e s2 to check for
                 state costs along the motion between the two
                 states. Assumes all costs are worse than identity */
-            Cost motionCost(const State *s1, const State *s2) const override;
+            Cost motionCost(const State *s1, const State *s2, unsigned int cd = 0) const override;
 
             /** \brief Since we're only concerned about the "worst"
                 state cost in the path, combining two costs just

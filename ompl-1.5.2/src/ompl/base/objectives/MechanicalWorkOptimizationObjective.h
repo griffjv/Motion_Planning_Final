@@ -60,7 +60,7 @@ namespace ompl
             Cost stateCost(const State *s) const override;
 
             /** \brief Defines motion cost in terms of the mechanical work formulation used for TRRT. */
-            Cost motionCost(const State *s1, const State *s2) const override;
+            Cost motionCost(const State *s1, const State *s2, unsigned int cd = 0) const override;
 
         protected:
             /** \brief The weighing factor for the path length in the mechanical work objective formulation. */

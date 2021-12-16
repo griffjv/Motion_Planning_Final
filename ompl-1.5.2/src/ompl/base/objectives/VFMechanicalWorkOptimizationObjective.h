@@ -66,7 +66,7 @@ namespace ompl
             }
 
             /** Compute mechanical work between two states. */
-            ompl::base::Cost motionCost(const ompl::base::State *s1, const ompl::base::State *s2) const override
+            ompl::base::Cost motionCost(const ompl::base::State *s1, const ompl::base::State *s2, unsigned int cd = 0) const override
             {
                 const base::StateSpacePtr &space = si_->getStateSpace();
                 // Per equation 7 in the paper

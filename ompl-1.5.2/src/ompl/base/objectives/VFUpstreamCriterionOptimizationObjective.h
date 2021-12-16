@@ -73,7 +73,7 @@ namespace ompl
             }
 
             /** Compute upstream criterion between two states. */
-            ompl::base::Cost motionCost(const State *s1, const State *s2) const override
+            ompl::base::Cost motionCost(const State *s1, const State *s2, unsigned int cd = 0) const override
             {
                 const base::StateSpacePtr &space = si_->getStateSpace();
                 // Per equation 1 in the paper, Riemann approximation on the left

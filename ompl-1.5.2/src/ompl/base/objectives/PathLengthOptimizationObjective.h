@@ -55,7 +55,7 @@ namespace ompl
             /** \brief Motion cost for this objective is defined as
                 the configuration space distance between \e s1 and \e
                 s2, using the method SpaceInformation::distance(). */
-            Cost motionCost(const State *s1, const State *s2) const override;
+            Cost motionCost(const State *s1, const State *s2, unsigned int cd = 0) const override;
 
             /** \brief the motion cost heuristic for this objective is
                 simply the configuration space distance between \e s1

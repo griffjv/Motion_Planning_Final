@@ -82,7 +82,7 @@ namespace ompl
                 above formula to compute the cost of each of those
                 segments, and adding them up.
             */
-            Cost motionCost(const State *s1, const State *s2) const override;
+            Cost motionCost(const State *s1, const State *s2, unsigned int cd = 0) const override;
 
             /** \brief Returns whether this objective subdivides
                 motions into smaller segments for more accurate motion
