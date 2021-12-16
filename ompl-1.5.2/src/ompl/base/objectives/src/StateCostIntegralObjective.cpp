@@ -48,7 +48,7 @@ ompl::base::Cost ompl::base::StateCostIntegralObjective::stateCost(const State *
     return Cost(1.0);
 }
 
-ompl::base::Cost ompl::base::StateCostIntegralObjective::motionCost(const State *s1, const State *s2) const
+ompl::base::Cost ompl::base::StateCostIntegralObjective::motionCost(const State *s1, const State *s2, unsigned int cd) const
 {
     if (interpolateMotionCost_)
     {

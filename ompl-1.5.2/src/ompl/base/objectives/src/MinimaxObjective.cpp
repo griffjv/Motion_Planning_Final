@@ -45,7 +45,7 @@ ompl::base::Cost ompl::base::MinimaxObjective::stateCost(const State *) const
     return Cost(1.0);
 }
 
-ompl::base::Cost ompl::base::MinimaxObjective::motionCost(const State *s1, const State *s2) const
+ompl::base::Cost ompl::base::MinimaxObjective::motionCost(const State *s1, const State *s2, unsigned int cd) const
 {
     Cost worstCost = this->identityCost();
 

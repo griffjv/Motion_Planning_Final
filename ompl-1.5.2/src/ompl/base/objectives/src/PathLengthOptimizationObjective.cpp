@@ -52,7 +52,7 @@ ompl::base::Cost ompl::base::PathLengthOptimizationObjective::stateCost(const St
     return identityCost();
 }
 
-ompl::base::Cost ompl::base::PathLengthOptimizationObjective::motionCost(const State *s1, const State *s2) const
+ompl::base::Cost ompl::base::PathLengthOptimizationObjective::motionCost(const State *s1, const State *s2, unsigned int cd) const
 {
     return Cost(si_->distance(s1, s2));
 }

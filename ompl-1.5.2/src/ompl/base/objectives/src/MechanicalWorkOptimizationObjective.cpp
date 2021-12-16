@@ -53,7 +53,7 @@ ompl::base::Cost ompl::base::MechanicalWorkOptimizationObjective::stateCost(cons
     return Cost(1.0);
 }
 
-ompl::base::Cost ompl::base::MechanicalWorkOptimizationObjective::motionCost(const State *s1, const State *s2) const
+ompl::base::Cost ompl::base::MechanicalWorkOptimizationObjective::motionCost(const State *s1, const State *s2, unsigned int cd) const
 {
     // Only accrue positive changes in cost
     double positiveCostAccrued = std::max(stateCost(s2).value() - stateCost(s1).value(), 0.0);
