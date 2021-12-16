@@ -254,12 +254,12 @@ ompl::base::Cost ompl::base::MultiOptimizationObjective::stateCost(const State *
     return c;
 }
 
-ompl::base::Cost ompl::base::MultiOptimizationObjective::motionCost(const State *s1, const State *s2) const
+ompl::base::Cost ompl::base::MultiOptimizationObjective::motionCost(const State *s1, const State *s2, unsigned int cd) const
 {
     Cost c = identityCost();
     for (const auto &component : components_)
     {
-        c = Cost(c.value() + component.weight * (component.objective->motionCost(s1, s2).value()));
+        c = Cost(c.value() + component.weight * (component.objective->motionCost(s1, s2, 0).value()));
     }
 
     return c;
