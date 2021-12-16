@@ -16,11 +16,10 @@ if (OMPL_BUILD_FINALPROJ)
     endmacro(add_ompl_finalproj)
 
     ##### Add files compile here ######
-    add_ompl_finalproj(demo_TestingGeometric3D TestingGeometric3D.cpp)
-    #add_ompl_finalproj(demo_Obstacle.cpp Obstacle)
-    add_ompl_finalproj(demo_ThreeDGeometricPlanner_UAV ThreeDGeometricPlanner_UAV.cpp)
-    ###################################
-
+    add_ompl_finalproj(mp_TestingGeometric3D TestingGeometric3D.cpp)
+    add_ompl_finalproj(mp_ThreeDGeometricPlanner_UAV ThreeDGeometricPlanner_UAV.cpp)
+    add_ompl_finalproj(mp_Kinodynamic_RRT_UAV kinodynamicRRTPlanner.cpp)
+    add_ompl_finalproj(mp_Kinodynamic_SST_UAV kinodynamicSSTPlanner.cpp)
 endif(OMPL_BUILD_FINALPROJ)
 
 file(GLOB OMPL_FINALPROJ_PY_FILES "*.py")

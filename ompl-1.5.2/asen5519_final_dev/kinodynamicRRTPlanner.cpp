@@ -94,8 +94,8 @@ public:
 	double dist1 = 1000;
 	for(int i = 0; i<7;i++){
 	// Check if x,y has reached goal position
-		double dx1 = fabs(re3state[0] - goal_x[5]);
-		double dy1 = fabs(re3state[1] - goal_y[5]);
+		double dx1 = fabs(re3state[0] - goal_x[i]);
+		double dy1 = fabs(re3state[1] - goal_y[i]);
 		
 		if(sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]) < dist1){
 			dist1 = sqrt(dx1*dx1 + dy1*dy1 + re3state[2]*re3state[2]);
@@ -112,7 +112,7 @@ public:
     	goal_y = {30, 100, 85, 225, 150, 100, 160};
     	
 	int num = distribute( generator );
-	num = 5;
+
 	st->as<ob::RealVectorStateSpace::StateType>()->values[0] = goal_x[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[1] = goal_y[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
@@ -134,7 +134,7 @@ public:
 
 double plan(double control_scale)
 {
-	std::ofstream PathResult("kino_result_goal6.txt");
+	std::ofstream PathResult("kino_result_goal7.txt");
 	// construct the state space we are planning in - RE(3) in this case
 	auto space(std::make_shared<ob::RealVectorStateSpace>());
 
@@ -148,8 +148,8 @@ double plan(double control_scale)
 	space->addDimension("z_dot", -15, 15);
 	const double g = 9.81; // m/s^2
 	const double max_T = 2*g; //m/s^2
-	const double max_eta = M_PI/4; //rad
-	const double max_rho = M_PI/4; //rad
+	const double max_eta = M_PI/8; //rad
+	const double max_rho = M_PI/2; //rad
 	const double max_T_dot = max_T/1 * .75; //one sec to reach max thrust
 	const double max_eta_dot = max_eta/1; //one sec to reach peak eta displacement
 	const double max_rho_dot = max_rho/1; //one sec to reach peak rho displacement
@@ -214,6 +214,9 @@ double plan(double control_scale)
 	si->setPropagationStepSize(0.2);
 	si->setMaxControlDuration(10);
 	si->setMinControlDuration(1);
+	
+	//si->setup();
+	
 	auto planner(std::make_shared<oc::RRT>(si));
 	
 	// set the problem we are trying to solve for the planner
@@ -229,7 +232,7 @@ double plan(double control_scale)
 	pdef->print(std::cout);
 
 	// attempt to solve the problem within one second of planning time
-	ob::PlannerStatus solved = planner->ob::Planner::solve(150.0);
+	ob::PlannerStatus solved = planner->ob::Planner::solve(100.0);
 
 	if (solved)
 	{
@@ -248,6 +251,7 @@ double plan(double control_scale)
 		std::cout << "No solution found" << std::endl;
 		PathResult.close();
 	}
+	planner->clear();
 	return pdef->getSolutionDifference();
 }
 
@@ -261,11 +265,13 @@ int main(int /*argc*/, char** /*argv*/) {
 	double result;
 	std::vector<float>  distances =  {0,0,0,0,0};
 	std::vector<double> times = {.05, .1, .2, .3, .5};
-	for(int i = 0; i<10; i++){
+	int tally = 0;
+	for(int i = 0; i<8; i++){
 		if(plan(.1) == 0){
-			break;
+			tally++;
 		}
 	}
+	std::cout<<"Tally: "<<tally<<std::endl;
 	/*
 	for(int j = 0; j<1; j++){
 		result = 0;
@@ -299,8 +305,8 @@ void KinematicUAVODE(const oc::ODESolver::StateType& q, const oc::Control* contr
 	// define system parameters
 	const double g = 9.81; // m/s^2
 	const double max_T = 2*g; // m/s^2
-	const double max_eta = M_PI/4; // rad
-	const double max_rho = M_PI/4; // rad
+	const double max_eta = M_PI/8; // rad
+	const double max_rho = M_PI/2; // rad
 	
 	// define state variables
 	const double x_dot = q[3]; const double y_dot = q[4]; const double z_dot = q[5];
@@ -327,7 +333,7 @@ void KinematicUAVODE(const oc::ODESolver::StateType& q, const oc::Control* contr
 		qdot[6] = u[0];
 	}
 
-
+	
 	if(rho >= max_rho && u[1]>0){
 		qdot[7] = 0; 
 	}else if(rho <= -max_rho && u[1]<0){
@@ -335,6 +341,7 @@ void KinematicUAVODE(const oc::ODESolver::StateType& q, const oc::Control* contr
 	}else{
 		qdot[7] = u[1];
 	}
+	
 	
 	if(T >= max_T && u[2]>0){
 		qdot[8] = 0; 
@@ -413,7 +420,6 @@ std::vector<ob::Obstacle> BuildEnvironment(){
   return env;
 }
 
-
 // check if state is valid
 bool isStateValid(const ob::State* state) {
 
@@ -431,8 +437,6 @@ bool isStateValid(const ob::State* state) {
 }
 
 void KinematicUAVPostIntegration(const ob::State*, const oc::Control*, const double, ob::State *result){
-	// Make sure z does not go below 0
-	ob::RealVectorStateSpace re3;
 	
 		// cast state to expected type, store as vector
 	auto* re3state = result->as<ob::RealVectorStateSpace::StateType>()->values;
@@ -440,5 +444,13 @@ void KinematicUAVPostIntegration(const ob::State*, const oc::Control*, const dou
 	if(re3state[2] < 0){
 		re3state[2] = 0;
 	}
+	
+	/* normalize rho to 0-2*pi
+	if(re3state[7] > 2*M_PI){
+		re3state[7] = re3state[7] - 2*M_PI;
+	}else if(re3state[7] < 0){
+		re3state[7] = re3state[7] + 2*M_PI;
+	}
+	*/
 }	
 

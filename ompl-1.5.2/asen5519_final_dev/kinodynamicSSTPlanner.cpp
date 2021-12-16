@@ -72,7 +72,8 @@ class RigidBodyGoal : public ob::GoalSampleableRegion
 public:
     RigidBodyGoal(const oc::SpaceInformationPtr &si) : ob::GoalSampleableRegion(si)
     {
-    	threshold_ = 11.3; //sqrt(2) * 8 - radius to center of goal
+    	//threshold_ = 11.3; //sqrt(2) * 8 - radius to center of goal
+    	threshold_ = 20;
     }
 
     virtual double distanceGoal(const ob::State *st) const override{
@@ -119,7 +120,7 @@ public:
     	goal_y = {30, 100, 85, 225, 150, 100, 160};
 
 	int num = distribute( generator );
-	// num = 6;
+
 	st->as<ob::RealVectorStateSpace::StateType>()->values[0] = goal_x[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[1] = goal_y[num];
 	st->as<ob::RealVectorStateSpace::StateType>()->values[2] =0;
@@ -141,7 +142,7 @@ public:
 
 double plan(double prop_time)
 {
-	std::ofstream PathResult("kinodynamic_result.txt");
+	std::ofstream PathResult("kinodynamic_SSTresult.txt");
 	// construct the state space we are planning in - RE(3) in this case
 	auto space(std::make_shared<ob::RealVectorStateSpace>());
 
@@ -150,14 +151,13 @@ double plan(double prop_time)
 	space->addDimension("y", 0.0, 250.0);
 	space->addDimension("z", 0.0, 200.0);
 
-	// TODO: ADD BOUNDS?
 	space->addDimension("x_dot", -15, 15);
 	space->addDimension("y_dot", -15, 15);
 	space->addDimension("z_dot", -15, 15);
 	const double g = 9.81; // m/s^2
 	const double max_T = 2*g; //m/s^2
-	const double max_eta = M_PI/4; //rad
-	const double max_rho = M_PI/4; //rad
+	const double max_eta = M_PI/8; //rad
+	const double max_rho = M_PI/2; //rad
 	const double max_T_dot = max_T/1 * .75; //one sec to reach max thrust
 	const double max_eta_dot = max_eta/1; //one sec to reach peak eta displacement
 	const double max_rho_dot = max_rho/1; //one sec to reach peak rho displacement
@@ -220,11 +220,14 @@ double plan(double prop_time)
 	auto odeSolver(std::make_shared<oc::ODEBasicSolver<>>(si, &KinematicUAVODE));
 	si->setStatePropagator(oc::ODESolver::getStatePropagator(odeSolver, &KinematicUAVPostIntegration));
 	si->setPropagationStepSize(0.2);
+	
+	si->setup();
+		
 	auto planner(std::make_shared<oc::SST>(si));
 
 	// SST settings
-	planner->setSelectionRadius(1.0); //TODO: change these values
-	planner->setPruningRadius(2.0);
+	planner->setSelectionRadius(3.0); //TODO: change these values
+	planner->setPruningRadius(1.0);
 	pdef->setOptimizationObjective(getPathEnergyObjective(si));
 
 	// set the problem we are trying to solve for the planner
@@ -235,12 +238,12 @@ double plan(double prop_time)
 
 	// print the settings for this space
 	si->printSettings(std::cout);
-
+	
 	// print the problem settings
 	pdef->print(std::cout);
 
-	// attempt to solve the problem within one second of planning time
-	ob::PlannerStatus solved = planner->ob::Planner::solve(45.0);
+	// attempt to solve the problem within 300 seconds of planning time
+	ob::PlannerStatus solved = planner->ob::Planner::solve(500.0);
 
 	if (solved)
 	{
@@ -251,7 +254,18 @@ double plan(double prop_time)
 		// print the path to screen
 		path->as<oc::PathControl>()->printAsMatrix(std::cout);
 		std::cout<<pdef->getSolutionDifference()<<std::endl;
-		path->as<oc::PathControl>()->printAsMatrix(PathResult);
+		
+		std::vector<ob::PlannerSolution> solutions = pdef->getSolutions();
+		
+		for(int k = 0; k < static_cast<int>(pdef->getSolutionCount()); k++){
+			std::cout<<"Path: "<< k+1 <<std::endl;
+			//PathResult<<"Path: "<< k+1 <<std::endl;
+			solutions[k].path_->as<oc::PathControl>()->printAsMatrix(std::cout);
+			//solutions[k].path_->as<oc::PathControl>()->printAsMatrix(PathResult);
+
+		}
+		std::cout<<"number of solutions:  "<<pdef->getSolutionCount()<<std::endl;
+		
 	}
 	else{
 		std::cout << "No solution found" << std::endl;
@@ -269,16 +283,18 @@ int main(int /*argc*/, char** /*argv*/) {
 	// benchmark results
 	double result;
 	std::vector<float>  distances =  {0,0,0};
-	std::vector<float> times = {0.1, 0.2, 0.3};
+	std::vector<float> times = {.2, .5, 1};
 
+
+	/*
 	for(int j = 0; j<3; j++){
 		result = 0;
-		for(int i = 0; i<15; i++){
+		for(int i = 0; i<10; i++){
 			// plan
 			result = result + plan(times[j]);
 			std::cout<<i<<std::endl;
 		}
-		distances[j] = result/15;
+		distances[j] = result/10;
 		std::cout<<distances[j]<<std::endl;
 	}
 
@@ -286,6 +302,15 @@ int main(int /*argc*/, char** /*argv*/) {
 	for(int j = 0; j<3; j++){
 		std::cout<<distances[j]<<std::endl;
 	}
+	*/
+	
+	
+	for(int i = 0; i<10; i++){
+		if(plan(.1) == 0){
+			break;
+		}
+	}
+	
 
 	std::cout << std::endl << std::endl;
 
@@ -303,8 +328,8 @@ void KinematicUAVODE(const oc::ODESolver::StateType& q, const oc::Control* contr
 	// define system parameters
 	const double g = 9.81; // m/s^2
 	const double max_T = 2*g; // m/s^2
-	const double max_eta = M_PI/4; // rad
-	const double max_rho = M_PI/4; // rad
+	const double max_eta = M_PI/8; // rad
+	const double max_rho = M_PI/2; // rad
 
 	// define state variables
 	const double x_dot = q[3]; const double y_dot = q[4]; const double z_dot = q[5];
@@ -466,12 +491,7 @@ public:
 		// Integrate control energy over time. Must override to pass in control time
 		ob::Cost motionCost(const ob::State *s1, const ob::State *s2, const unsigned int cd) const override
 		{
-			std::cout<<this->stateCost(s1)<<std::endl;
-			std::cout<<this->stateCost(s2)<<std::endl;
-			std::cout<<cd<<std::endl;
-			
-			std::cout<<this->trapezoid(this->stateCost(s1), this->stateCost(s2), cd*.2)<<std::endl; // (T2+T1)/2 * time
-			return this->trapezoid(this->stateCost(s1), this->stateCost(s2), cd*.2);
+			return this->trapezoid(this->stateCost(s1), this->stateCost(s2), cd*.2);// (T2+T1)/2 * time
 		}
 };
 
